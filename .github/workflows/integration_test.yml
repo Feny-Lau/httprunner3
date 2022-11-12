@@ -1,0 +1,48 @@
+name: integration_test
+
+on:
+  push:
+  pull_request:
+    types: [synchronize]
+
+jobs:
+  integration_test:
+
+    name: integration_test - ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10']
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: x64
+    - name: Install dependencies
+      run: |
+        pip install poetry
+        poetry --version
+        poetry install -vv -E upload
+    - name: Test build package
+      run: |
+        poetry build
+        ls -l dist/
+    - name: Test commands
+      run: |
+        poetry run hrun -V
+        poetry run har2case -h
+        poetry run httprunner run -h
+        poetry run httprunner startproject -h
+        poetry run httprunner har2case -h
+    - name: Run smoketest - postman echo
+      run: |
+        poetry run hrun examples/postman_echo/request_methods
+    - name: Run smoketest - httpbin
+      run: |
+        poetry run hrun examples/httpbin/
